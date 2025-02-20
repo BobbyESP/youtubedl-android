@@ -23,6 +23,7 @@ object YoutubeDL {
     private var ENV_LD_LIBRARY_PATH: String? = null
     private var ENV_SSL_CERT_FILE: String? = null
     private var ENV_PYTHONHOME: String? = null
+    private var TMPDIR: String = ""
     private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
     @Synchronized
@@ -45,6 +46,7 @@ object YoutubeDL {
                 aria2cDir.absolutePath + "/usr/lib"
         ENV_SSL_CERT_FILE = pythonDir.absolutePath + "/usr/etc/tls/cert.pem"
         ENV_PYTHONHOME = pythonDir.absolutePath + "/usr"
+        TMPDIR = appContext.cacheDir.absolutePath
         initPython(appContext, pythonDir)
         init_ytdlp(appContext, ytdlpDir)
         initialized = true
@@ -150,6 +152,15 @@ object YoutubeDL {
             request.addOption("--no-cache-dir")
         }
 
+        if (request.buildCommand().contains("libaria2c.so")) {
+            request
+                .addOption("--external-downloader-args", "aria2c:--summary-interval=1")
+                .addOption(
+                    "--external-downloader-args",
+                    "aria2c:--ca-certificate=$ENV_SSL_CERT_FILE"
+                )
+        }
+
         /* Set ffmpeg location, See https://github.com/xibr/ytdlp-lazy/issues/1 */
         request.addOption("--ffmpeg-location", ffmpegPath!!.absolutePath)
         val youtubeDLResponse: YoutubeDLResponse
@@ -169,6 +180,7 @@ object YoutubeDL {
             this["PATH"] = System.getenv("PATH") + ":" + binDir!!.absolutePath
             this["PYTHONHOME"] = ENV_PYTHONHOME
             this["HOME"] = ENV_PYTHONHOME
+            this["TMPDIR"] = TMPDIR
         }
 
         process = try {
@@ -235,10 +247,12 @@ object YoutubeDL {
         DONE, ALREADY_UP_TO_DATE
     }
 
-    sealed class UpdateChannel(val apiUrl: String) {
+    open class UpdateChannel(val apiUrl: String) {
         object STABLE : UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
         object NIGHTLY :
             UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest")
+        object MASTER :
+            UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-master-builds/releases/latest")
 
         companion object {
             @JvmField
@@ -246,6 +260,9 @@ object YoutubeDL {
 
             @JvmField
             val _NIGHTLY: NIGHTLY = NIGHTLY
+
+            @JvmField
+            val _MASTER: MASTER = MASTER
         }
     }
 
