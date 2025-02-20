@@ -1,10 +1,12 @@
 package com.yausername.youtubedl_android_example;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -32,7 +34,6 @@ import io.reactivex.schedulers.Schedulers;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function3;
 
-
 public class DownloadingExampleActivity extends AppCompatActivity implements View.OnClickListener {
 
     private Button btnStartDownload;
@@ -48,15 +49,13 @@ public class DownloadingExampleActivity extends AppCompatActivity implements Vie
     private final CompositeDisposable compositeDisposable = new CompositeDisposable();
     private String processId = "MyDlProcess";
 
-
     private final Function3<Float, Long, String, Unit> callback = new Function3<Float, Long, String, Unit>() {
         @Override
         public Unit invoke(Float progress, Long o2, String line) {
             runOnUiThread(() -> {
-                        progressBar.setProgress((int) progress.floatValue());
-                        tvDownloadStatus.setText(line);
-                    }
-            );
+                progressBar.setProgress((int) progress.floatValue());
+                tvDownloadStatus.setText(line);
+            });
             return Unit.INSTANCE;
         }
     };
@@ -90,17 +89,16 @@ public class DownloadingExampleActivity extends AppCompatActivity implements Vie
 
     @Override
     public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.btn_start_download:
-                startDownload();
-                break;
-            case R.id.btn_stop_download:
-                try {
-                    YoutubeDL.getInstance().destroyProcessById(processId);
-                } catch (Exception e) {
-                    Log.e(TAG, e.toString());
-                }
-                break;
+        final int startDownloadId = R.id.btn_start_download;
+        final int stopDownloadId = R.id.btn_stop_download;
+        if (v.getId() == startDownloadId) {
+            startDownload();
+        } else if (v.getId() == stopDownloadId) {
+            try {
+                YoutubeDL.getInstance().destroyProcessById(processId);
+            } catch (Exception e) {
+                Log.e(TAG, e.toString());
+            }
         }
     }
 
@@ -121,6 +119,30 @@ public class DownloadingExampleActivity extends AppCompatActivity implements Vie
             return;
         }
 
+        YoutubeDLRequest request = getYoutubeDLRequest(url);
+
+        showStart();
+
+        downloading = true;
+        Disposable disposable = Observable.fromCallable(() -> YoutubeDL.getInstance().execute(request, processId, callback)).subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread()).subscribe(youtubeDLResponse -> {
+            pbLoading.setVisibility(View.GONE);
+            progressBar.setProgress(100);
+            tvDownloadStatus.setText(getString(R.string.download_complete));
+            tvCommandOutput.setText(youtubeDLResponse.getOut());
+            Toast.makeText(DownloadingExampleActivity.this, "download successful", Toast.LENGTH_LONG).show();
+            downloading = false;
+        }, e -> {
+            if (BuildConfig.DEBUG) Log.e(TAG, "failed to download", e);
+            pbLoading.setVisibility(View.GONE);
+            tvDownloadStatus.setText(getString(R.string.download_failed));
+            tvCommandOutput.setText(e.getMessage());
+            Toast.makeText(DownloadingExampleActivity.this, "download failed", Toast.LENGTH_LONG).show();
+            downloading = false;
+        });
+        compositeDisposable.add(disposable);
+    }
+
+    private YoutubeDLRequest getYoutubeDLRequest(String url) {
         YoutubeDLRequest request = new YoutubeDLRequest(url);
         File youtubeDLDir = getDownloadLocation();
         File config = new File(youtubeDLDir, "config.txt");
@@ -133,30 +155,7 @@ public class DownloadingExampleActivity extends AppCompatActivity implements Vie
             request.addOption("-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best");
             request.addOption("-o", youtubeDLDir.getAbsolutePath() + "/%(title)s.%(ext)s");
         }
-
-        showStart();
-
-        downloading = true;
-        Disposable disposable = Observable.fromCallable(() -> YoutubeDL.getInstance().execute(request, processId, callback))
-                .subscribeOn(Schedulers.newThread())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(youtubeDLResponse -> {
-                    pbLoading.setVisibility(View.GONE);
-                    progressBar.setProgress(100);
-                    tvDownloadStatus.setText(getString(R.string.download_complete));
-                    tvCommandOutput.setText(youtubeDLResponse.getOut());
-                    Toast.makeText(DownloadingExampleActivity.this, "download successful", Toast.LENGTH_LONG).show();
-                    downloading = false;
-                }, e -> {
-                    if (BuildConfig.DEBUG) Log.e(TAG, "failed to download", e);
-                    pbLoading.setVisibility(View.GONE);
-                    tvDownloadStatus.setText(getString(R.string.download_failed));
-                    tvCommandOutput.setText(e.getMessage());
-                    Toast.makeText(DownloadingExampleActivity.this, "download failed", Toast.LENGTH_LONG).show();
-                    downloading = false;
-                });
-        compositeDisposable.add(disposable);
-
+        return request;
     }
 
     @Override
@@ -180,16 +179,21 @@ public class DownloadingExampleActivity extends AppCompatActivity implements Vie
     }
 
     public boolean isStoragePermissionGranted() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Environment.isExternalStorageManager()) {
+                return true;
+            } else {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                startActivityForResult(intent, 1);
+                return false;
+            }
+        } else {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 return true;
             } else {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
                 return false;
             }
-        } else {
-            return true;
         }
     }
 }

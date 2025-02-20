@@ -1,4 +1,3 @@
-
 ## Python for Android
 
 Python can be built for android using the termux python package.
@@ -48,13 +47,15 @@ The python zip archive as used in youtubedl-android can be created using the fol
     cd data/youtubedl-android
     zip --symlinks -r /tmp/python3_7_arm.zip usr/lib usr/etc
 
-
 ## add mutagen
 
 https://github.com/yt-dlp/yt-dlp#dependencies
 
-To build or add `mutagen` for embedding thumbnail go to [mutagen](https://github.com/quodlibet/mutagen) then download the latest version
+To build or add `mutagen` for embedding thumbnail go
+to [mutagen](https://github.com/quodlibet/mutagen) then download the latest version
 
-Unzip `mutagen-1.45.1.tar.gz` then you will find many files and folders, Delete all files and folders except the `mutagen` folder
+Unzip `mutagen-1.45.1.tar.gz` then you will find many files and folders, Delete all files and
+folders except the `mutagen` folder
 
-Rename `libpython.zip.so` to `libpython.zip` then open it and add mutagen folder to the following path `/usr/lib/python3.8/site-packages/` when finished rename `libpython.zip` to `libpython.zip.so`
+Rename `libpython.zip.so` to `libpython.zip` then open it and add mutagen folder to the following
+path `/usr/lib/python3.8/site-packages/` when finished rename `libpython.zip` to `libpython.zip.so`

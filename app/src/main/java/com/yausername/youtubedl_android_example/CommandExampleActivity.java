@@ -1,9 +1,12 @@
 package com.yausername.youtubedl_android_example;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -87,20 +90,17 @@ public class CommandExampleActivity extends AppCompatActivity implements View.On
 
     @Override
     public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.btn_run_command:
-                runCommand();
-                break;
-            case R.id.btn_stop_download:
-                if (running) {
-                    try {
-                        YoutubeDL.getInstance().destroyProcessById(processId);
-                        running = false;
-                    } catch (Exception e) {
-                        Log.e(TAG, e.toString());
-                    }
+        if (v.getId() == R.id.btn_run_command) {
+            runCommand();
+        } else if (v.getId() == R.id.btn_stop_download) {
+            if (running) {
+                try {
+                    YoutubeDL.getInstance().destroyProcessById(processId);
+                    running = false;
+                } catch (Exception e) {
+                    Log.e(TAG, e.toString());
                 }
-                break;
+            }
         }
     }
 
@@ -174,16 +174,21 @@ public class CommandExampleActivity extends AppCompatActivity implements View.On
     }
 
     public boolean isStoragePermissionGranted() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Environment.isExternalStorageManager()) {
+                return true;
+            } else {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                startActivityForResult(intent, 1);
+                return false;
+            }
+        } else {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 return true;
             } else {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
                 return false;
             }
-        } else {
-            return true;
         }
     }
 }

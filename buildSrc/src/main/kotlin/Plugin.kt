@@ -2,14 +2,12 @@ package com.yausername.youtubedl_android
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 
 open class PublishConfigurationExtension {
     var isPublished: Boolean = false
     var artifactId: String = ""
 }
-
 
 open class PublishPlugin : Plugin<Project> {
 
